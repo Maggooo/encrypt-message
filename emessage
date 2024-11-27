@@ -1,0 +1,163 @@
+import tkinter as tk
+from tkinter import ttk, scrolledtext
+
+# Alfabetul românesc extins (inclusiv diacriticele și cifrele)
+extended_alphabet = 'abcdefghijklmnopqrstuvwxyzășțîâ0123456789'
+
+def vigenere_encrypt(message, key):
+    coded_text = ''
+    key_index = 0
+    for char in message:
+        if char.lower() in extended_alphabet:  # Verificăm dacă caracterul este în alfabetul extins
+            key_char = key[key_index % len(key)].lower()  # Folosim cheia în mod repetitiv
+            key_shift = extended_alphabet.index(key_char)  # Calculăm deplasarea pe baza cheii
+            position = (extended_alphabet.index(char.lower()) + key_shift) % len(extended_alphabet)
+            coded_char = extended_alphabet[position]
+
+            if char.isupper():
+                coded_text += coded_char.upper()  # Păstrăm cazul literelor mari
+            else:
+                coded_text += coded_char.lower()  # Păstrăm cazul literelor mici
+            key_index += 1
+        else:
+            coded_text += char  # Păstrăm caracterele non-alfabetice (de exemplu, semne de punctuație)
+    return coded_text
+
+def vigenere_decrypt(message, key):
+    decoded_text = ''
+    key_index = 0
+    for char in message:
+        if char.lower() in extended_alphabet:  # Verificăm dacă caracterul este în alfabetul extins
+            key_char = key[key_index % len(key)].lower()  # Folosim cheia în mod repetitiv
+            key_shift = extended_alphabet.index(key_char)  # Calculăm deplasarea pe baza cheii
+            position = (extended_alphabet.index(char.lower()) - key_shift) % len(extended_alphabet)
+            decoded_char = extended_alphabet[position]
+
+            if char.isupper():
+                decoded_text += decoded_char.upper()  # Păstrăm cazul literelor mari
+            else:
+                decoded_text += decoded_char.lower()  # Păstrăm cazul literelor mici
+            key_index += 1
+        else:
+            decoded_text += char  # Păstrăm caracterele non-alfabetice
+    return decoded_text
+
+def on_button_click():
+    try:
+        user_choice = choice_var.get()
+        message = message_text.get("1.0", tk.END).strip()
+        key = key_entry.get().strip()
+
+        if not key or not key.isalnum():  # Cheia trebuie să fie validă (litere și numere)
+            result_text.config(state=tk.NORMAL)  # Schimbăm starea pentru a putea adăuga text
+            result_text.delete(1.0, tk.END)
+            result_text.insert(tk.END, "Please enter a valid key (letters and numbers only).")
+            result_text.config(state=tk.DISABLED)  # Înapoi la stare de citire
+            return
+
+        if not message:  # Verificăm dacă există mesajul de criptat sau decriptat
+            result_text.config(state=tk.NORMAL)
+            result_text.delete(1.0, tk.END)
+            result_text.insert(tk.END, "Please enter a message to encrypt or decrypt.")
+            result_text.config(state=tk.DISABLED)
+            return
+
+        result_text.config(state=tk.NORMAL)  # Permite modificarea textului
+        if user_choice == 'Decrypt':
+            result_text.delete(1.0, tk.END)
+            result_text.insert(tk.END, f'Original message:\n{vigenere_decrypt(message, key)}')
+        elif user_choice == 'Encrypt':
+            result_text.delete(1.0, tk.END)
+            result_text.insert(tk.END, f'Coded message:\n{vigenere_encrypt(message, key)}')
+        result_text.config(state=tk.DISABLED)  # Setează înapoi la stare de citire
+    except Exception as e:
+        result_text.config(state=tk.NORMAL)
+        result_text.delete(1.0, tk.END)
+        result_text.insert(tk.END, f"Error: {str(e)}")
+        result_text.config(state=tk.DISABLED)
+
+def copy_result():
+    # Obține tot textul din fereastra de rezultat
+    result = result_text.get("1.0", tk.END).strip()
+
+    # Verifică dacă textul începe cu "Original message:" sau "Coded message:" și elimină-l dacă există
+    if result.startswith("Original message:"):
+        result = result[len("Original message:"):].strip()
+    elif result.startswith("Coded message:"):
+        result = result[len("Coded message:"):].strip()
+
+    # Copiază mesajul curat în clipboard
+    root.clipboard_clear()
+    root.clipboard_append(result)
+    root.update()
+
+def update_labels(*args):
+    if choice_var.get() == 'Encrypt':
+        message_label.config(text="Mesajul original:")
+        result_label.config(text="Mesajul codat:")
+    else:
+        message_label.config(text="Mesajul codat:")
+        result_label.config(text="Mesajul original:")
+
+# Funcții pentru meniu contextual de copiere și lipire
+def create_context_menu(widget):
+    menu = tk.Menu(widget, tearoff=0)
+    menu.add_command(label="Copy", command=lambda: widget.event_generate("<<Copy>>"))
+    menu.add_command(label="Paste", command=lambda: widget.event_generate("<<Paste>>"))
+
+    # Asociem meniul la click dreapta
+    widget.bind("<Button-3>", lambda event: menu.tk_popup(event.x_root, event.y_root))
+
+# Create GUI
+root = tk.Tk()
+root.title('Vigenère Encrypt/Decrypt Tool by Magotel')
+
+# Configure grid to make rows and columns expandable
+root.grid_rowconfigure(1, weight=1, minsize=100)  # Row for message, with vertical expansion
+root.grid_rowconfigure(4, weight=1, minsize=100)  # Row for result, with vertical expansion
+
+root.grid_columnconfigure(0, weight=0)  # Column for button 1 (Execute)
+root.grid_columnconfigure(1, weight=1, minsize=200)  # Column for text entry area, with horizontal expansion
+root.grid_columnconfigure(2, weight=0)  # Column for button 2 (Copy Result)
+
+# GUI Elements
+choice_var = tk.StringVar()
+choice_label = ttk.Label(root, text='Choose action:')
+choice_combobox = ttk.Combobox(root, textvariable=choice_var, values=['Encrypt', 'Decrypt'])
+choice_combobox.set('Encrypt')
+
+message_label = ttk.Label(root, text='Mesajul original:')
+message_text = scrolledtext.ScrolledText(root, wrap=tk.WORD, width=30, height=5)
+
+key_label = ttk.Label(root, text='Enter key (letters and numbers):')
+key_entry = ttk.Entry(root, width=20)
+
+result_label = ttk.Label(root, text='Mesajul codat:')
+result_text = scrolledtext.ScrolledText(root, wrap=tk.WORD, width=30, height=5)
+
+execute_button = ttk.Button(root, text='Execute', command=on_button_click)
+copy_button = ttk.Button(root, text='Copy Result', command=copy_result)
+
+# Layout (plasare elemente UI pe ecran)
+choice_label.grid(row=0, column=0, padx=10, pady=10)
+choice_combobox.grid(row=0, column=1, padx=10, pady=10)
+message_label.grid(row=1, column=0, padx=10, pady=10)
+message_text.grid(row=1, column=1, padx=10, pady=10, sticky="nsew")
+key_label.grid(row=2, column=0, padx=10, pady=10)
+key_entry.grid(row=2, column=1, padx=10, pady=10)
+execute_button.grid(row=3, column=0, pady=10)
+copy_button.grid(row=3, column=1, pady=10)
+
+result_label.grid(row=4, column=0, padx=10, pady=10)
+result_text.grid(row=4, column=1, padx=10, pady=10, sticky="nsew")
+
+# Adaugă meniul contextual la zonele de text
+create_context_menu(message_text)
+create_context_menu(result_text)
+create_context_menu(key_entry)
+
+# Trace the choice_var to update labels
+choice_var.trace_add('write', update_labels)  # `trace_add` este apelat aici, după definirea elementelor UI
+
+# Run application
+root.mainloop()
